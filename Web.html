@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Falcon ESP </title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f0f0f0;
+      }
+      header {
+        background: #283149;
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-weight: 300;
+      }
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 20px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        margin: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        width: 300px;
+        box-sizing: border-box;
+      }
+      .card h2 {
+        margin-top: 0;
+        font-weight: 400;
+        color: #333;
+      }
+      .center {
+        text-align: center;
+      }
+      button {
+        background: #4f5d75;
+        color: #fff;
+        padding: 10px;
+        border: none;
+        margin: 5px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.3s;
+      }
+      button:hover {
+        background: #2d3142;
+      }
+      .video-container {
+        text-align: center;
+      }
+      .data-value {
+        font-size: 1.2em;
+        color: #444;
+        margin: 10px 0;
+      }
+      .btn-group {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn-group button {
+        flex: 1 0 45%;
+        margin: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Falcon ESP Control Panel</h1>
+    </header>
+    <main>
+      <!-- Video Stream -->
+      <div class="card">
+        <h2>Video en Tiempo Real</h2>
+        <div class="video-container">
+          <!-- Asumiendo que la ESP32-CAM proporciona una URL /video -->
+          <img
+            id="videoStream"
+            src=""
+            alt="Stream Video"
+            style="max-width: 100%; border: 1px solid #ccc; border-radius: 4px"
+          />
+        </div>
+      </div>
+
+      <!-- Controles de Motores -->
+      <div class="card">
+        <h2>Control de Motores</h2>
+        <p class="center">Mover el dron usando MQTT</p>
+        <div class="btn-group">
+          <button id="btnUp">↑ Adelante</button>
+          <button id="btnDown">↓ Atrás</button>
+          <button id="btnLeft">← Izquierda</button>
+          <button id="btnRight">→ Derecha</button>
+          <button id="btnUpAlt">Elevar</button>
+          <button id="btnDownAlt">Descender</button>
+        </div>
+      </div>
+
+      <!-- Datos de Sensores: LDR y Ubicación -->
+      <div class="card">
+        <h2>Datos del Dron</h2>
+        <div class="data-section">
+          <h3>Luz Ambiente (LDR):</h3>
+          <div class="data-value" id="ldrValue">-</div>
+          <h3>Ubicación (Lat, Lon):</h3>
+          <div class="data-value" id="locationValue">Lat: -, Lon: -</div>
+        </div>
+      </div>
+
+      <!-- Estado de Conexión y Otros Datos -->
+      <div class="card">
+        <h2>Estado y Telemetría</h2>
+        <div class="data-section">
+          <h3>Conexión a Firebase:</h3>
+          <div class="data-value" id="firebaseStatus">Conectando...</div>
+          <h3>MQTT Estado:</h3>
+          <div class="data-value" id="mqttStatus">Desconectado</div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+        // -------------------- CONFIGURACIÓN --------------------
+        // Ajustar URL
+        const ESP32CAM_URL = "http://<IP>/video"; // URL del video stream MJPEG
+        const FIREBASE_CONFIG = {
+          apiKey: "YOUR_API_KEY",
+          authDomain: "yourapp.falconespapp.com",
+          databaseURL: "https://falconesp.firebaseio.com",
+          projectId: "falconesp",
+          storageBucket: "falconesp.appspot.com",
+          messagingSenderId: "SENDER_ID",
+          appId: "APP_ID"
+        };
+        const MQTT_BROKER_URL = "wss://falsonesp-mqtt-broker:port/mqtt";
+        const MQTT_TOPIC_COMMANDS = "falcon/drone/commands";
+        const MQTT_TOPIC_LDR = "falcon/drone/ldr";
+        const MQTT_TOPIC_LOCATION = "falcon/drone/location";
+
+        // -------------------- INICIALIZACIÓN VIDEO --------------------
+        document.getElementById('videoStream').src = ESP32CAM_URL;
+
+        // -------------------- FIREBASE --------------------
+
+        (function initFirebase(){
+          // Esto requiere <script src="https://www.gstatic.com/firebasejs/8.10.0/falconesp-app.js">
+
+       HTML. if (typeof firebase ===
+      'undefined') { document.getElementById('firebaseStatus').innerText =
+      "Firebase SDK no cargado"; return; }
+      firebase.initializeApp(FIREBASE_CONFIG);
+      document.getElementById('firebaseStatus').innerText = "Conectado a Firebase"; const db = firebase.database(); // Escuchar cambios en LDR
+      db.ref('sensores/ldr').on('value', snapshot => { const val = snapshot.val();
+      document.getElementById('ldrValue').innerText = val !== null ? val : '-';
+      }); // Escuchar cambios en ubicación db.ref('sensores/gps').on('value',
+      snapshot => { const data = snapshot.val(); if (data && data.lat && data.lon)
+      { document.getElementById('locationValue').innerText = `Lat: ${data.lat},
+      Lon: ${data.lon}`; } } })();
+
+
+
+        let mqttClient = null;
+        (function initMQTT(){
+          if (typeof Paho === 'undefined') {
+            document.getElementById('mqttStatus').innerText = "Librería MQTT no cargada";
+            return;
+          }
+
+          mqttClient = new Paho.MQTT.Client(MQTT_BROKER_URL, "falconClient" + Math.random());
+          mqttClient.onConnectionLost = onMqttConnectionLost;
+          mqttClient.onMessageArrived = onMqttMessageArrived;
+
+          mqttClient.connect({onSuccess: onMqttConnected, onFailure: onMqttFailure});
+        })();
+
+        function onMqttConnected(){
+          document.getElementById('mqttStatus').innerText = "Conectado";
+          mqttClient.subscribe(MQTT_TOPIC_LDR);
+          mqttClient.subscribe(MQTT_TOPIC_LOCATION);
+        }
+
+        function onMqttFailure(){
+          document.getElementById('mqttStatus').innerText = "Error al conectar";
+        }
+
+        function onMqttConnectionLost(responseObject) {
+          if (responseObject.errorCode !== 0) {
+            document.getElementById('mqttStatus').innerText = "Conexión perdida: " + responseObject.errorMessage;
+          }
+        }
+
+        function onMqttMessageArrived(message) {
+          if (message.destinationName === MQTT_TOPIC_LDR) {
+            document.getElementById('ldrValue').innerText = message.payloadString;
+          } else if (message.destinationName === MQTT_TOPIC_LOCATION) {
+            // esperar algo como "lat,lon"
+            let parts = message.payloadString.split(',');
+            if (parts.length===2) {
+              document.getElementById('locationValue').innerText = `Lat: ${parts[0]}, Lon: ${parts[1]}`;
+            }
+          }
+        }
+
+        function sendMqttCommand(cmd) {
+          if (mqttClient && mqttClient.isConnected()) {
+            let msg = new Paho.MQTT.Message(cmd);
+            msg.destinationName = MQTT_TOPIC_COMMANDS;
+            mqttClient.send(msg);
+          }
+        }
+
+        // -------------------- EVENTOS DE BOTONES --------------------
+        document.getElementById('btnUp').addEventListener('click', ()=>sendMqttCommand("FORWARD"));
+        document.getElementById('btnDown').addEventListener('click', ()=>sendMqttCommand("BACKWARD"));
+        document.getElementById('btnLeft').addEventListener('click', ()=>sendMqttCommand("LEFT"));
+        document.getElementById('btnRight').addEventListener('click', ()=>sendMqttCommand("RIGHT"));
+        document.getElementById('btnUpAlt').addEventListener('click', ()=>sendMqttCommand("UP"));
+        document.getElementById('btnDownAlt').addEventListener('click', ()=>sendMqttCommand("DOWN"));
+    </script>
+  </body>
+</html>

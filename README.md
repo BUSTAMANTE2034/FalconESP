@@ -1,6 +1,8 @@
 # PROYECTO: Falcon ESP
 
 ## Descripción General
+### https://youtube.com/@falconesp_32?si=bBbZBDxBUkOGDTZP @Video de Youtube
+
 
 Este proyecto busca implementar un sistema completo de control y monitoreo para un dron basado en un microcontrolador con MicroPython (ESP32). El objetivo es integrar diferentes sensores, actuadores, y métodos de comunicación, incluyendo:
 
